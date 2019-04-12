@@ -70,6 +70,13 @@ public class App {
         }
     }
 
+    /**
+     * 统计高频词汇
+     *
+     * @param map
+     * @param doc
+     * @throws Exception
+     */
     static void summary(Map<String, Integer> map, Doc doc) throws Exception {
         List<Word> words = new ArrayList<>();
         List<Map.Entry<String, Integer>> list = new ArrayList<Map.Entry<String, Integer>>(map.entrySet());
@@ -85,6 +92,11 @@ public class App {
         summary.addAll(words);
     }
 
+    /**
+     * 导出excel
+     *
+     * @throws Exception
+     */
     static void save() throws Exception {
         ExcelUtil.writeWordsToExcel(summary);
     }
