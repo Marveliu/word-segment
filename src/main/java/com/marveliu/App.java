@@ -1,18 +1,25 @@
 package com.marveliu;
 
 import com.alibaba.excel.EasyExcelFactory;
+import com.alibaba.excel.ExcelWriter;
 import com.alibaba.excel.metadata.Sheet;
 import com.google.common.io.Files;
 import com.marveliu.model.Doc;
 import com.marveliu.model.Word;
+import com.marveliu.util.ExcelUtil;
 import com.marveliu.util.FileUtil;
 import com.marveliu.util.HanlpUtil;
 import com.marveliu.util.StringUtil;
-import com.marveliu.util.excel.ExcelUtil;
 
 import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.*;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 /**
  * @Author: Marveliu
@@ -22,10 +29,11 @@ import java.util.*;
 
 public class App {
 
-    // 词频结果
-    static List<Word> summary = new ArrayList<>();
     // 文件列表
-    static Map<Integer, String> docs = new HashMap<>();
+    public static Map<Integer, String> docs = new HashMap<>();
+    static CountDownLatch count = null;
+    static int nThread = Runtime.getRuntime().availableProcessors() + 1;
+    static List<Word> words = new ArrayList<>();
 
     static {
         try {
@@ -35,6 +43,7 @@ public class App {
                 Doc d = (Doc) doc;
                 docs.put(d.getNo(), d.getTitle());
             });
+            count = new CountDownLatch(docs.size());
         } catch (Exception e) {
             e.printStackTrace();
             System.exit(0);
@@ -42,29 +51,41 @@ public class App {
     }
 
     public static void main(String[] args) {
+        long begin = System.currentTimeMillis();
+        ExecutorService es = Executors.newFixedThreadPool(nThread);
         try {
-            Map<String, Integer> words = new HashMap<>();
             // 对每个文件进行词频统计
             for (String s : FileUtil.datas) {
                 if (Files.getFileExtension(s).equals(Cons.FILE_TYPE_TXT)) {
-                    Integer n = Integer.valueOf(s.split("\\.")[0]);
-                    Doc doc = new Doc(n, docs.get(n));
-                    String content = FileUtil.getContent(s);
-                    // 统计词频
-                    HanlpUtil.procWords(content.trim()).forEach(word -> {
-                        String w = word.word;
-                        // 过滤非法字符
-                        if (StringUtil.isValid(w)) {
-                            words.putIfAbsent(w, 0);
-                            words.put(w, words.get(w) + 1);
+                    es.execute(() -> {
+                        long bd = System.currentTimeMillis();
+                        String content = FileUtil.getContent(s);
+                        Integer n = Integer.valueOf(s.split("\\.")[0]);
+                        Doc doc = new Doc(n, App.docs.get(n));
+                        Map<String, Integer> map = new HashMap<>();
+                        // 统计词频
+                        HanlpUtil.procWords(content.trim()).forEach(term -> {
+                            String w = term.word;
+                            // 过滤非法字符
+                            if (StringUtil.isValid(w)) {
+                                map.putIfAbsent(w, 0);
+                                map.put(w, map.get(w) + 1);
+                            }
+                        });
+                        synchronized (words) {
+                            words.addAll(summary(map, doc));
                         }
+                        System.out.printf("处理文件：%s，总共用时：%d ms \n", s, System.currentTimeMillis() - bd);
+                        count.countDown();
                     });
-                    summary(words, doc);
-                    words.clear();
                 }
             }
+            count.await();
+            ExcelUtil.writeWordsToExcel(words);
             // 输出结果文件
-            save();
+            System.out.printf("使用时间：%d ms,处理文件：%d\n", System.currentTimeMillis() - begin, docs.size());
+            es.shutdown();
+            es.awaitTermination(1, TimeUnit.SECONDS);
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -77,7 +98,7 @@ public class App {
      * @param doc
      * @throws Exception
      */
-    static void summary(Map<String, Integer> map, Doc doc) throws Exception {
+    static List<Word> summary(Map<String, Integer> map, Doc doc) {
         List<Word> words = new ArrayList<>();
         List<Map.Entry<String, Integer>> list = new ArrayList<Map.Entry<String, Integer>>(map.entrySet());
         Collections.sort(list, new Comparator<Map.Entry<String, Integer>>() {
@@ -89,16 +110,8 @@ public class App {
         for (int i = 0; i < Cons.WORDS_NUMBER; i++) {
             words.add(new Word(doc.getNo(), doc.getTitle(), list.get(i).getKey(), list.get(i).getValue()));
         }
-        summary.addAll(words);
+        return words;
     }
 
-    /**
-     * 导出excel
-     *
-     * @throws Exception
-     */
-    static void save() throws Exception {
-        ExcelUtil.writeWordsToExcel(summary);
-    }
 }
 

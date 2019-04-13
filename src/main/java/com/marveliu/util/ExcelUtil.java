@@ -1,4 +1,4 @@
-package com.marveliu.util.excel;
+package com.marveliu.util;
 
 import com.alibaba.excel.EasyExcelFactory;
 import com.alibaba.excel.ExcelWriter;
@@ -34,4 +34,6 @@ public class ExcelUtil {
             out.close();
         }
     }
+
+
 }

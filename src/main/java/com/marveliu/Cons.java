@@ -1,5 +1,14 @@
 package com.marveliu;
 
+import com.alibaba.excel.EasyExcelFactory;
+import com.alibaba.excel.metadata.Sheet;
+import com.marveliu.model.Doc;
+
+import java.io.FileInputStream;
+import java.io.InputStream;
+import java.util.HashMap;
+import java.util.Map;
+
 /**
  * @Author: Marveliu
  * @Date: 2019/4/12 2:37 PM
@@ -23,5 +32,6 @@ public class Cons {
 
     // 词频数目
     public final static Integer WORDS_NUMBER = 20;
+
 
 }

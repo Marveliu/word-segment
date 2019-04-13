@@ -30,13 +30,10 @@ public class FileUtil {
     public static String getContent(String s) {
         try {
             String fp = Cons.FilesPath + File.separator + s;
-            System.out.println("Read File: " + fp);
-
             StringBuilder sb = new StringBuilder();
             Files.readLines(new File(fp), Charsets.UTF_8).forEach(line -> {
                 sb.append(CharMatcher.whitespace().removeFrom(line));
             });
-            System.out.println(sb.toString());
             return sb.toString();
         } catch (Exception e) {
             e.printStackTrace();
